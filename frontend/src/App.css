@@ -25,16 +25,67 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.header-content h1 {
+.header-logo-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.danone-logo {
+  height: 45px;
+  max-width: 200px;
+  object-fit: contain;
+}
+
+.header-text h1 {
   margin: 0;
   font-size: 2.2rem;
   font-weight: 600;
 }
 
-.header-content p {
+.header-text p {
   margin: 0.5rem 0 0 0;
   font-size: 1.1rem;
   opacity: 0.9;
+}
+
+.tab-navigation {
+  display: flex;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.tab-button {
+  background: transparent;
+  border: 2px solid var(--danone-white);
+  color: var(--danone-white);
+  padding: 10px 20px;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tab-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.tab-button.active {
+  background: var(--danone-white);
+  color: var(--danone-blue);
+  font-weight: 600;
+}
+
+.content-panel {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .main-content {
@@ -48,17 +99,41 @@
 @media (max-width: 768px) {
   .main-content {
     flex-direction: column;
+    height: calc(100vh - 160px);
   }
   
-  .header-content h1 {
+  .header-logo-section {
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+  }
+  
+  .danone-logo {
+    height: 35px;
+    max-width: 150px;
+  }
+  
+  .header-text h1 {
     font-size: 1.8rem;
   }
   
-  .header-content p {
+  .header-text p {
     font-size: 1rem;
   }
   
   .App-header {
     padding: 1rem;
+  }
+  
+  .tab-navigation {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  
+  .tab-button {
+    padding: 8px 16px;
+    font-size: 13px;
+    border-radius: 20px;
   }
 }

@@ -1,6 +1,6 @@
 # Danone POS Analytics - Databricks Apps
 
-A React-based application for visualizing Danone's Point of Sales (POS) data across Europe, optimized for deployment on Databricks Apps platform.
+A comprehensive enterprise analytics platform for visualizing Danone's Point of Sales (POS) data across Europe with AI-powered insights, optimized for deployment on Databricks Apps platform with Claude 3.7 Sonnet integration.
 
 ## 🏗️ Architecture
 
@@ -22,21 +22,35 @@ This application follows the Databricks Apps architecture:
 
 ## 🚀 Features
 
-### 🗺️ Interactive Map
-- OpenStreetMap integration focused on Europe
-- Custom markers for different business types
-- Detailed POS information popups
+### 🤖 AI-Powered Recommendations
+- **Claude 3.7 Sonnet Integration**: Real-time AI analysis via Databricks endpoint
+- **Strategic Insights**: Growth opportunities and optimization suggestions
+- **Smart Analytics**: Automated pattern recognition and market analysis
+- **Secure Token Passthrough**: Enterprise-grade authentication for AI services
 
-### 🔍 Advanced Filtering
-- **Product Families**: Yogurt & Desserts, Baby Nutrition, Medical Nutrition, Waters, Plant-Based, Dairy Alternatives
-- **Business Types**: Supermarket, Hypermarket, Convenience Store, Pharmacy, Baby Store, Health Food Store, Online Retailer
-- **Sales Volume**: Interactive range slider
+### 🗺️ Interactive Map Dashboard
+- **Professional Grey Map**: CartoDB light tiles for business presentation
+- **Custom Markers**: Color-coded by business type with detailed popups
+- **Real-time Statistics**: Live metrics and performance overlay
+- **AI Recommendations Panel**: Floating insights panel with Claude analysis
+
+### 📊 Advanced Analytics Dashboard
+- **Dual-Tab Interface**: Seamless switching between Map and Analytics views
+- **Revenue Analysis**: Interactive charts by country, business type, and product family
+- **Performance Metrics**: Top performers, growth trends, and key insights
+- **Cross-Tab Filtering**: Unified filter system across all views
+
+### 🔍 Enterprise Filtering System
+- **Product Families**: 6 Danone categories with real-time updates
+- **Business Types**: 7 retail channel types with smart categorization
+- **Sales Volume**: Interactive range slider with instant data refresh
+- **Cross-View Consistency**: Filters apply to both Map and Analytics dashboards
 
 ### 🔐 Databricks Integration
-- SSO/OAuth authentication via Databricks
-- Token passthrough for secure API access
-- User context awareness
-- Unity Catalog permissions support
+- **SSO/OAuth Authentication**: Seamless Databricks user authentication
+- **Token Passthrough**: Secure AI API access using `X-Forwarded-Access-Token`
+- **Unity Catalog**: Leverage existing permissions and governance
+- **Enterprise Security**: No anonymous access, full audit logging
 
 ## 📋 Prerequisites
 
@@ -205,6 +219,27 @@ Set in `backend/app.py` or via Databricks Apps UI:
 2. **Version Control**: Track changes in git
 3. **Backup**: Keep configuration in version control
 4. **Monitoring**: Regular check of `/logz` endpoint
+
+## 🎯 Current Deployment Status
+
+### ✅ **Latest Production Deployment**
+- **Deployment ID**: `01f084c12da91453be2c23274d69694e`
+- **Status**: `SUCCEEDED` - App started successfully  
+- **Features**: Full AI integration with Claude 3.7 Sonnet, dual-tab analytics dashboard, 2024 Danone branding
+- **Claude Endpoint**: `https://fe-vm-vdm-serverless-nmmvdg.cloud.databricks.com/serving-endpoints/databricks-claude-3-7-sonnet/invocations`
+
+### 🌐 **Access Information**
+- **Databricks Apps**: Available in your workspace Apps section as "danone-pos-analytics"
+- **Local Development**: `http://localhost:8000` via `./run-local.sh`
+- **Monitoring**: Real-time logs available at `<app-url>/logz`
+
+### 🚀 **Application Capabilities**
+Your Danone POS Analytics application is now **fully operational** with:
+- **AI-Powered Insights**: Claude 3.7 Sonnet recommendations and analysis
+- **Dual-Dashboard Interface**: Interactive map and deep-dive analytics
+- **Enterprise Security**: Databricks SSO with token passthrough
+- **Professional Branding**: Official 2024 Danone logo and styling
+- **Real-time Filtering**: Cross-tab functionality across all views
 
 ## 🆘 Support
 

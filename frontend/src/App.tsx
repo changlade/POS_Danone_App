@@ -2,12 +2,15 @@ import React, { useState } from 'react';
 import './App.css';
 import MapComponent from './components/MapComponent';
 import FilterPanel from './components/FilterPanel';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
+import RecommendationsPanel from './components/RecommendationsPanel';
 import { POSData } from './types/POSData';
 import { generateSamplePOSData } from './data/sampleData';
 
 function App() {
   const [allPOSData] = useState<POSData[]>(generateSamplePOSData());
   const [filteredPOSData, setFilteredPOSData] = useState<POSData[]>(allPOSData);
+  const [activeTab, setActiveTab] = useState<'map' | 'analytics'>('map');
   const [filters, setFilters] = useState({
     productFamilies: [] as string[],
     businessTypes: [] as string[],
@@ -48,8 +51,27 @@ function App() {
     <div className="App">
       <header className="App-header">
         <div className="header-content">
-          <h1>Danone POS Analytics</h1>
-          <p>Point of Sales Data Visualization across Europe</p>
+          <div className="header-logo-section">
+            <img src="/danone-logo.webp" alt="Danone Logo" className="danone-logo" />
+            <div className="header-text">
+              <h1>POS Analytics</h1>
+              <p>Point of Sales Data Visualization across Europe</p>
+            </div>
+          </div>
+        </div>
+        <div className="tab-navigation">
+          <button
+            className={`tab-button ${activeTab === 'map' ? 'active' : ''}`}
+            onClick={() => setActiveTab('map')}
+          >
+            🗺️ Map View
+          </button>
+          <button
+            className={`tab-button ${activeTab === 'analytics' ? 'active' : ''}`}
+            onClick={() => setActiveTab('analytics')}
+          >
+            📊 Analytics Dashboard
+          </button>
         </div>
       </header>
       
@@ -59,7 +81,18 @@ function App() {
           onFilterChange={handleFilterChange}
           posData={allPOSData}
         />
-        <MapComponent posData={filteredPOSData} />
+        
+        {activeTab === 'map' ? (
+          <div className="content-panel">
+            <MapComponent posData={filteredPOSData} />
+            <RecommendationsPanel posData={filteredPOSData} />
+          </div>
+        ) : (
+          <AnalyticsDashboard 
+            posData={filteredPOSData}
+            allPosData={allPOSData}
+          />
+        )}
       </div>
     </div>
   );
