@@ -1,0 +1,18 @@
+# Build stage for React frontend
+FROM node:18-alpine as builder
+
+WORKDIR /app
+
+# Copy package.json and install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy source code and build
+COPY . .
+RUN npm run build
+
+# Output stage - just copy the built files
+FROM alpine:latest
+WORKDIR /output
+COPY --from=builder /app/build ./
+CMD ["sh", "-c", "cp -r . /output-volume/"]
