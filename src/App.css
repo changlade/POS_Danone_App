@@ -1,0 +1,64 @@
+/* Danone Brand Colors */
+:root {
+  --danone-blue: #007cba;
+  --danone-light-blue: #00a8cc;
+  --danone-green: #00a651;
+  --danone-orange: #ff6600;
+  --danone-gray: #f5f5f5;
+  --danone-dark-gray: #333333;
+  --danone-white: #ffffff;
+}
+
+.App {
+  text-align: left;
+  font-family: 'Arial', sans-serif;
+  color: var(--danone-dark-gray);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.App-header {
+  background: linear-gradient(135deg, var(--danone-blue) 0%, var(--danone-light-blue) 100%);
+  color: var(--danone-white);
+  padding: 1rem 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header-content h1 {
+  margin: 0;
+  font-size: 2.2rem;
+  font-weight: 600;
+}
+
+.header-content p {
+  margin: 0.5rem 0 0 0;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.main-content {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - 120px);
+  overflow: hidden;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .main-content {
+    flex-direction: column;
+  }
+  
+  .header-content h1 {
+    font-size: 1.8rem;
+  }
+  
+  .header-content p {
+    font-size: 1rem;
+  }
+  
+  .App-header {
+    padding: 1rem;
+  }
+}
