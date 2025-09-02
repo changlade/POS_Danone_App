@@ -226,7 +226,7 @@ Set in `backend/app.py` or via Databricks Apps UI:
 - **Deployment ID**: `01f084c12da91453be2c23274d69694e`
 - **Status**: `SUCCEEDED` - App started successfully  
 - **Features**: Full AI integration with Claude 3.7 Sonnet, dual-tab analytics dashboard, 2024 Danone branding
-- **Claude Endpoint**: `https://fe-vm-vdm-serverless-nmmvdg.cloud.databricks.com/serving-endpoints/databricks-claude-3-7-sonnet/invocations`
+- **Claude Endpoint**: `https://adb-8487495412728212.12.azuredatabricks.net/serving-endpoints/databricks-claude-3-7-sonnet/invocations`
 
 ### 🌐 **Access Information**
 - **Databricks Apps**: Available in your workspace Apps section as "danone-pos-analytics"

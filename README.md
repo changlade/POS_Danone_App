@@ -210,7 +210,7 @@ POS_Danone_App/
 
 ### API Endpoint Configuration
 ```
-Endpoint: https://fe-vm-vdm-serverless-nmmvdg.cloud.databricks.com/serving-endpoints/databricks-claude-3-7-sonnet/invocations
+Endpoint: https://adb-8487495412728212.12.azuredatabricks.net/serving-endpoints/databricks-claude-3-7-sonnet/invocations
 Authentication: Databricks user token passthrough
 ```
 
@@ -279,12 +279,17 @@ Authentication: Databricks user token passthrough
 ## 🚀 Deployment Status
 
 ### Latest Production Deployment
-- **Deployment ID**: `01f084c12da91453be2c23274d69694e`
+- **Deployment ID**: `01f084f10ecf1c5785e6c91f46fe5ce9`
 - **Status**: `SUCCEEDED` - App started successfully
-- **Features**: Full AI integration, analytics dashboard, updated branding
+- **Features**: Full AI integration, analytics dashboard, enhanced 403 error diagnostics, optimized header UI
 - **Platform**: Databricks Apps with SSO authentication
 
 ### Access Information
 - **Local Development**: `http://localhost:8000`
 - **Production**: Available via Databricks workspace Apps section
 - **Logs**: `<app-url>/logz` for real-time monitoring
+
+### Diagnostic Endpoints (NEW)
+- **Claude Health Check**: `<app-url>/health/claude` - Comprehensive authentication and connectivity diagnostics
+- **OAuth Testing**: `<app-url>/diagnostic/oauth-test` - Test both User OBO and Service Principal authentication flows
+- **Basic Health**: `<app-url>/health` - Application status check
