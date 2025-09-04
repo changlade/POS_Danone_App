@@ -95,6 +95,79 @@
   overflow: hidden;
 }
 
+/* Data Status Indicators */
+.data-status {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.status-indicator {
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-indicator.loading {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--danone-white);
+}
+
+.status-indicator.success {
+  background: rgba(0, 166, 81, 0.2);
+  color: var(--danone-white);
+}
+
+.status-indicator.error {
+  background: rgba(255, 102, 0, 0.2);
+  color: var(--danone-white);
+}
+
+.status-indicator.sample {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--danone-white);
+}
+
+/* Change indicators for new/updated businesses */
+.change-indicator {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.change-indicator.new {
+  color: #10b981;
+}
+
+.change-indicator.updated {
+  color: #f59e0b;
+}
+
+.refresh-button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: var(--danone-white);
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.refresh-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.refresh-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .main-content {

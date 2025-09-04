@@ -1,1 +1,18 @@
 command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# Configure authentication to exclude static assets from OAuth
+auth:
+  # Make these paths publicly accessible without authentication
+  public_paths:
+    - "/manifest.json"
+    - "/favicon.ico" 
+    - "/asset-manifest.json"
+    - "/danone-logo.webp"
+    - "/static/**"
+    - "/public/**"
+    - "/health"
+    - "/health/**"
+  # Require authentication for all other paths
+  require_auth: true
+  # Allow OPTIONS requests for CORS preflight
+  allow_options: true

@@ -1,24 +1,70 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import os
 import logging
 import httpx
 import json
 from datetime import datetime
+try:
+    import asyncpg
+    ASYNCPG_AVAILABLE = True
+except ImportError:
+    ASYNCPG_AVAILABLE = False
+    asyncpg = None
+import asyncio
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Claude configuration
-# Primary Claude endpoint
-CLAUDE_ENDPOINT = "https://adb-8487495412728212.12.azuredatabricks.net/serving-endpoints/databricks-claude-3-7-sonnet/invocations"
+# Database configuration for Databricks Postgres
+DATABASE_CONFIG = {
+    "host": "instance-1203a90b-2a20-4155-b1cc-383360ea8797.database.cloud.databricks.com",
+    "port": 5432,
+    "database": "databricks_postgres",
+    "user": "app_account",
+    "password": "DX2o9aIqFId34jJY",
+    "ssl": "require"
+}
 
-# Alternative endpoint if needed (uncomment to test)
-# CLAUDE_ENDPOINT = "https://adb-8487495412728212.12.azuredatabricks.net/api/2.0/serving-endpoints/databricks-claude-3-7-sonnet/invocations"
+# Database connection pool
+db_pool = None
+
+async def init_db_pool():
+    """Initialize database connection pool"""
+    global db_pool
+    
+    if not ASYNCPG_AVAILABLE:
+        logger.warning("asyncpg not available - running in development mode without database")
+        return
+    
+    try:
+        db_pool = await asyncpg.create_pool(
+            host=DATABASE_CONFIG["host"],
+            port=DATABASE_CONFIG["port"],
+            database=DATABASE_CONFIG["database"],
+            user=DATABASE_CONFIG["user"],
+            password=DATABASE_CONFIG["password"],
+            ssl="require",
+            min_size=1,
+            max_size=5
+        )
+        logger.info("Database connection pool initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database pool: {e}")
+        logger.warning("Continuing without database connection - will use sample data")
+
+async def close_db_pool():
+    """Close database connection pool"""
+    global db_pool
+    if db_pool:
+        await db_pool.close()
+        logger.info("Database connection pool closed")
+
+
 
 app = FastAPI(
     title="Danone POS Analytics",
@@ -26,19 +72,119 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Startup and shutdown events
+@app.on_event("startup")
+async def startup():
+    await init_db_pool()
+
+@app.on_event("shutdown")
+async def shutdown():
+    await close_db_pool()
+
 # Add CORS middleware for Databricks Apps
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify actual Databricks Apps domains
+    allow_origins=[
+        "*",  # Allow all for development
+        "https://*.databricksapps.com",  # Databricks Apps domains
+        "https://*.azuredatabricksapps.com",  # Azure Databricks Apps domains
+        "https://*.gcp.databricksapps.com",  # GCP Databricks Apps domains
+    ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Health check endpoint
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "app": "Danone POS Analytics"}
+
+# Database health check endpoint
+@app.get("/health/database")
+async def database_health_check():
+    """Check database connectivity and basic functionality"""
+    global db_pool
+    
+    health_status = {
+        "timestamp": datetime.now().isoformat(),
+        "database": {
+            "status": "unknown",
+            "connection": False,
+            "asyncpg_available": ASYNCPG_AVAILABLE,
+            "pool_status": bool(db_pool),
+            "test_query": False,
+            "schema_access": False,
+            "table_access": False,
+            "data_count": 0
+        },
+        "overall_status": "unhealthy"
+    }
+    
+    # Check if asyncpg is available
+    if not ASYNCPG_AVAILABLE:
+        health_status["database"]["status"] = "asyncpg_not_available"
+        health_status["database"]["message"] = "asyncpg module not available - using sample data"
+        health_status["overall_status"] = "degraded"
+        return health_status
+    
+    # Check if database pool exists
+    if not db_pool:
+        health_status["database"]["status"] = "no_connection_pool"
+        health_status["database"]["message"] = "Database connection pool not initialized - using sample data"
+        health_status["overall_status"] = "degraded"
+        return health_status
+    
+    try:
+        async with db_pool.acquire() as conn:
+            health_status["database"]["connection"] = True
+            
+            # Test basic query
+            try:
+                result = await conn.fetchval("SELECT 1")
+                health_status["database"]["test_query"] = True
+            except Exception as e:
+                health_status["database"]["test_query_error"] = str(e)
+            
+            # Test schema access
+            try:
+                schema_result = await conn.fetchval("""
+                    SELECT COUNT(*) FROM information_schema.schemata 
+                    WHERE schema_name = 'public'
+                """)
+                health_status["database"]["schema_access"] = schema_result > 0
+            except Exception as e:
+                health_status["database"]["schema_error"] = str(e)
+            
+            # Test table access and data count
+            try:
+                count_result = await conn.fetchval("""
+                    SELECT COUNT(*) FROM public.businesses 
+                    WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+                """)
+                health_status["database"]["table_access"] = True
+                health_status["database"]["data_count"] = count_result
+            except Exception as e:
+                health_status["database"]["table_error"] = str(e)
+            
+            # Determine overall status
+            if (health_status["database"]["test_query"] and 
+                health_status["database"]["schema_access"] and 
+                health_status["database"]["table_access"]):
+                health_status["database"]["status"] = "healthy"
+                health_status["overall_status"] = "healthy"
+            else:
+                health_status["database"]["status"] = "partial"
+                health_status["overall_status"] = "degraded"
+                
+    except Exception as e:
+        health_status["database"]["status"] = "connection_failed"
+        health_status["database"]["error"] = str(e)
+        health_status["database"]["message"] = "Database connection failed - using sample data"
+        health_status["overall_status"] = "degraded"
+    
+    return health_status
 
 # Enhanced Claude connectivity and authentication diagnostics
 @app.get("/health/claude")
@@ -334,6 +480,294 @@ async def get_pos_data(request: Request):
         "data_source": "sample_data"
     }
 
+@app.get("/api/pos-submissions")
+async def get_pos_submissions(request: Request):
+    """Get business data from Databricks Postgres database"""
+    global db_pool
+    
+    # If no database connection, return sample data
+    if not db_pool or not ASYNCPG_AVAILABLE:
+        logger.info("No database connection available, returning sample data")
+        sample_data = generate_sample_pos_data()
+        return {
+            "status": "success",
+            "data": sample_data,
+            "count": len(sample_data),
+            "data_source": "sample_data",
+            "retrieved_at": datetime.now().isoformat(),
+            "note": "Using sample data - database not available"
+        }
+    
+    try:
+        async with db_pool.acquire() as conn:
+            # Query the businesses table in the public schema
+            query = """
+                SELECT 
+                    id,
+                    name,
+                    type,
+                    address,
+                    latitude,
+                    longitude,
+                    is_danone_customer,
+                    last_photo_date,
+                    menu_items,
+                    created_at,
+                    updated_at
+                FROM public.businesses
+                WHERE latitude IS NOT NULL 
+                  AND longitude IS NOT NULL
+                ORDER BY last_photo_date DESC NULLS LAST, created_at DESC
+            """
+            
+            rows = await conn.fetch(query)
+            
+            # Transform database rows to POS data format
+            pos_data = []
+            for row in rows:
+                # Parse menu_items if it's JSON
+                menu_items = []
+                if row['menu_items']:
+                    try:
+                        if isinstance(row['menu_items'], str):
+                            menu_items = json.loads(row['menu_items'])
+                        else:
+                            menu_items = row['menu_items']
+                    except json.JSONDecodeError:
+                        menu_items = []
+                
+                # Map menu items to standard product families
+                product_families = []
+                total_items = 0
+                total_value = 0
+                
+                for item in menu_items:
+                    if isinstance(item, dict):
+                        category = item.get('category', '').lower()
+                        product_name = item.get('productName', '').lower()
+                        price_str = item.get('detectedPrice', '€0')
+                        times_detected = item.get('timesDetected', 1)
+                        
+                        # Extract price value
+                        try:
+                            price_value = float(price_str.replace('€', '').replace(',', '.'))
+                            total_value += price_value * times_detected
+                            total_items += times_detected
+                        except:
+                            pass
+                        
+                        # Map to Danone product families based on category and product name
+                        if 'water' in category or any(keyword in product_name for keyword in ['evian', 'volvic', 'badoit']):
+                            product_families.append('Waters')
+                        elif 'yogurt' in category or 'yoghurt' in category or 'dessert' in category:
+                            product_families.append('Yogurt & Desserts')
+                        elif any(keyword in product_name for keyword in ['baby', 'infant', 'formula']):
+                            product_families.append('Baby Nutrition')
+                        elif any(keyword in product_name for keyword in ['plant', 'oat', 'almond', 'soy']):
+                            product_families.append('Plant-Based')
+                        elif any(keyword in product_name for keyword in ['medical', 'nutrition', 'health']):
+                            product_families.append('Medical Nutrition')
+                        else:
+                            product_families.append('Dairy Alternatives')
+                
+                # Remove duplicates and ensure at least one product family
+                product_families = list(set(product_families))
+                if not product_families:
+                    product_families = ['Waters']  # Default for businesses
+                
+                # Use business type from database or map from name
+                business_type = row['type'] or 'Restaurant'  # Default
+                if not business_type or business_type.lower() == 'unknown':
+                    business_name_lower = (row['name'] or '').lower()
+                    if any(keyword in business_name_lower for keyword in ['hypermarket', 'hyper']):
+                        business_type = 'Hypermarket'
+                    elif any(keyword in business_name_lower for keyword in ['supermarket', 'super']):
+                        business_type = 'Supermarket'
+                    elif any(keyword in business_name_lower for keyword in ['convenience', 'corner', 'mini']):
+                        business_type = 'Convenience Store'
+                    elif any(keyword in business_name_lower for keyword in ['pharmacy', 'pharma']):
+                        business_type = 'Pharmacy'
+                    elif any(keyword in business_name_lower for keyword in ['café', 'cafe', 'restaurant', 'bistro']):
+                        business_type = 'Restaurant'
+                    else:
+                        business_type = 'Restaurant'
+                
+                # Calculate estimated sales volume based on menu items and business type
+                base_volume = max(total_value * 100, 10000)  # Base estimation from menu pricing
+                if business_type == 'Hypermarket':
+                    sales_volume = base_volume * 4
+                elif business_type == 'Supermarket':
+                    sales_volume = base_volume * 2
+                elif business_type == 'Restaurant':
+                    sales_volume = base_volume * 1.5
+                else:
+                    sales_volume = base_volume
+                
+                # Calculate points based on customer status and menu items
+                points_earned = 0
+                if row['is_danone_customer']:
+                    points_earned += 50
+                points_earned += len(menu_items) * 10  # 10 points per menu item
+                
+                pos_data.append({
+                    "id": f"biz_{row['id']}",
+                    "name": row['name'] or f"Business {row['id']}",
+                    "latitude": float(row['latitude']),
+                    "longitude": float(row['longitude']),
+                    "businessType": business_type,
+                    "productFamilies": product_families,
+                    "salesVolume": int(sales_volume),
+                    "city": extract_city_from_address(row['address']),
+                    "country": extract_country_from_address(row['address']),
+                    "address": row['address'] or '',
+                    "submissionData": {
+                        "user_name": "Scout Network",
+                        "photo_url": None,
+                        "points_earned": points_earned,
+                        "submitted_at": row['last_photo_date'].isoformat() if row['last_photo_date'] else None,
+                        "detected_products": menu_items,
+                        "is_danone_customer": row['is_danone_customer'],
+                        "menu_items": menu_items,
+                        "total_menu_items": len(menu_items),
+                        "last_updated": row['last_photo_date'].isoformat() if row['last_photo_date'] else None
+                    }
+                })
+            
+            logger.info(f"Retrieved {len(pos_data)} submissions from database")
+            
+            return {
+                "status": "success",
+                "data": pos_data,
+                "count": len(pos_data),
+                "data_source": "databricks_postgres",
+                "retrieved_at": datetime.now().isoformat()
+            }
+            
+    except Exception as e:
+        logger.error(f"Database query error: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+def extract_city_from_address(address: Optional[str]) -> str:
+    """Extract city from address string"""
+    if not address:
+        return "Unknown"
+    
+    # Simple extraction - could be improved with more sophisticated parsing
+    parts = address.split(',')
+    if len(parts) >= 2:
+        return parts[-2].strip()
+    return address.split(' ')[-1] if address else "Unknown"
+
+def extract_country_from_address(address: Optional[str]) -> str:
+    """Extract country from address string"""
+    if not address:
+        return "Unknown"
+    
+    # Simple extraction - could be improved with more sophisticated parsing
+    parts = address.split(',')
+    if len(parts) >= 1:
+        last_part = parts[-1].strip().upper()
+        # Map common country codes/names
+        country_map = {
+            'FR': 'France', 'FRANCE': 'France',
+            'DE': 'Germany', 'GERMANY': 'Germany', 'DEUTSCHLAND': 'Germany',
+            'UK': 'United Kingdom', 'GB': 'United Kingdom', 'UNITED KINGDOM': 'United Kingdom',
+            'ES': 'Spain', 'SPAIN': 'Spain', 'ESPAÑA': 'Spain',
+            'IT': 'Italy', 'ITALY': 'Italy', 'ITALIA': 'Italy',
+            'NL': 'Netherlands', 'NETHERLANDS': 'Netherlands',
+            'BE': 'Belgium', 'BELGIUM': 'Belgium'
+        }
+        return country_map.get(last_part, last_part.title())
+    
+    return "Unknown"
+
+def generate_sample_pos_data():
+    """Generate sample POS data for development/fallback purposes"""
+    import random
+    
+    PRODUCT_FAMILIES = [
+        'Yogurt & Desserts',
+        'Baby Nutrition',
+        'Medical Nutrition', 
+        'Waters',
+        'Plant-Based',
+        'Dairy Alternatives'
+    ]
+    
+    BUSINESS_TYPES = [
+        'Supermarket',
+        'Hypermarket',
+        'Convenience Store',
+        'Pharmacy',
+        'Baby Store',
+        'Health Food Store',
+        'Online Retailer'
+    ]
+    
+    sample_locations = [
+        {"city": "Paris", "country": "France", "lat": 48.8566, "lng": 2.3522},
+        {"city": "London", "country": "UK", "lat": 51.5074, "lng": -0.1278},
+        {"city": "Berlin", "country": "Germany", "lat": 52.5200, "lng": 13.4050},
+        {"city": "Madrid", "country": "Spain", "lat": 40.4168, "lng": -3.7038},
+        {"city": "Rome", "country": "Italy", "lat": 41.9028, "lng": 12.4964},
+        {"city": "Amsterdam", "country": "Netherlands", "lat": 52.3676, "lng": 4.9041},
+        {"city": "Brussels", "country": "Belgium", "lat": 50.8503, "lng": 4.3517},
+        {"city": "Vienna", "country": "Austria", "lat": 48.2082, "lng": 16.3738},
+        {"city": "Zurich", "country": "Switzerland", "lat": 47.3769, "lng": 8.5417},
+        {"city": "Stockholm", "country": "Sweden", "lat": 59.3293, "lng": 18.0686}
+    ]
+    
+    pos_data = []
+    
+    for index, location in enumerate(sample_locations):
+        # Generate 2-3 POS locations per city
+        num_pos = random.randint(2, 3)
+        
+        for i in range(num_pos):
+            # Add some random offset to coordinates
+            lat_offset = (random.random() - 0.5) * 0.1
+            lng_offset = (random.random() - 0.5) * 0.1
+            
+            business_type = random.choice(BUSINESS_TYPES)
+            
+            # Generate 1-3 product families per POS
+            num_families = random.randint(1, 3)
+            product_families = random.sample(PRODUCT_FAMILIES, num_families)
+            
+            # Generate sales volume based on business type
+            base_volume = 50000
+            if business_type == 'Hypermarket':
+                base_volume = 200000
+            elif business_type == 'Supermarket':
+                base_volume = 100000
+            elif business_type == 'Convenience Store':
+                base_volume = 30000
+            elif business_type == 'Pharmacy':
+                base_volume = 25000
+                
+            sales_volume = int(base_volume + (random.random() * base_volume * 0.8))
+            
+            pos_data.append({
+                "id": f"sample_{index}_{i}",
+                "name": f"{business_type} {location['city']} {i + 1}",
+                "latitude": location["lat"] + lat_offset,
+                "longitude": location["lng"] + lng_offset,
+                "businessType": business_type,
+                "productFamilies": product_families,
+                "salesVolume": sales_volume,
+                "city": location["city"],
+                "country": location["country"],
+                "address": f"{random.randint(1, 999)} Main Street, {location['city']}",
+                "submissionData": {
+                    "user_name": "sample_user",
+                    "points_earned": random.randint(10, 100),
+                    "submitted_at": datetime.now().isoformat(),
+                    "detected_products": [{"name": family.split()[0].lower()} for family in product_families]
+                }
+            })
+    
+    return pos_data
+
 async def call_claude_api(user_token: str, prompt: str) -> str:
     """Call Claude API with user token - Enhanced with 403 error diagnostics"""
     headers = {
@@ -599,11 +1033,84 @@ async def serve_frontend(path: str):
     # Fallback
     return {"error": "Frontend not built. Please run 'npm run build' in the frontend directory."}
 
+# Explicit routes for important static files that need to be publicly accessible
+@app.get("/manifest.json")
+async def serve_manifest():
+    """Serve manifest.json with proper headers for PWA support - PUBLIC ENDPOINT"""
+    manifest_path = os.path.join(static_root_dir, "manifest.json")
+    if os.path.exists(manifest_path):
+        return FileResponse(
+            manifest_path,
+            headers={
+                "Content-Type": "application/json",
+                "Cache-Control": "public, max-age=3600",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, OPTIONS",
+                "Access-Control-Allow-Headers": "*",
+                "X-Public-Resource": "true"
+            }
+        )
+    raise HTTPException(status_code=404, detail="Manifest not found")
+
+@app.options("/manifest.json")
+async def manifest_options():
+    """Handle CORS preflight for manifest.json"""
+    return Response(
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Max-Age": "3600"
+        }
+    )
+
+# Alternative manifest endpoint that might bypass authentication
+@app.get("/public/manifest.json")
+async def serve_public_manifest():
+    """Alternative public manifest endpoint"""
+    manifest_path = os.path.join(static_root_dir, "manifest.json")
+    if os.path.exists(manifest_path):
+        return FileResponse(
+            manifest_path,
+            headers={
+                "Content-Type": "application/json",
+                "Cache-Control": "public, max-age=3600",
+                "Access-Control-Allow-Origin": "*",
+                "X-Public-Resource": "true"
+            }
+        )
+    raise HTTPException(status_code=404, detail="Manifest not found")
+
+@app.get("/favicon.ico")
+async def serve_favicon():
+    """Serve favicon.ico"""
+    favicon_path = os.path.join(static_root_dir, "favicon.ico")
+    if os.path.exists(favicon_path):
+        return FileResponse(
+            favicon_path,
+            headers={"Access-Control-Allow-Origin": "*"}
+        )
+    raise HTTPException(status_code=404, detail="Favicon not found")
+
+@app.get("/asset-manifest.json")
+async def serve_asset_manifest():
+    """Serve asset-manifest.json with proper headers"""
+    asset_manifest_path = os.path.join(static_root_dir, "asset-manifest.json")
+    if os.path.exists(asset_manifest_path):
+        return FileResponse(
+            asset_manifest_path,
+            headers={
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+            }
+        )
+    raise HTTPException(status_code=404, detail="Asset manifest not found")
+
 # Root route
 @app.get("/")
 async def root():
     """Serve the main React app"""
-    index_path = os.path.join(static_dir, "index.html")
+    index_path = os.path.join(static_root_dir, "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
     

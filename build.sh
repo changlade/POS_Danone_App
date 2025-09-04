@@ -30,9 +30,16 @@ else
     exit 1
 fi
 
+# Build the backend container
+echo "Building backend container..."
+cd backend
+docker build -t danone-backend .
+cd ..
+
 echo ""
 echo "🚀 Ready for Databricks Apps deployment!"
 echo ""
 echo "Next steps:"
-echo "1. Test locally: cd backend && python -m uvicorn app:app --reload"
-echo "2. Deploy to Databricks using the deploy.sh script"
+echo "1. Test locally with Docker Compose: docker-compose up"
+echo "2. Or test backend only: docker run -p 8000:8000 danone-backend"
+echo "3. Deploy to Databricks using the deploy.sh script"

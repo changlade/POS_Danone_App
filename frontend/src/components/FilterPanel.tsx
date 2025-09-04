@@ -1,19 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { POSData } from '../types/POSData';
+import { POSData, ScoutFilters } from '../types/POSData';
 import { PRODUCT_FAMILIES, BUSINESS_TYPES } from '../data/sampleData';
 import './FilterPanel.css';
 
 interface FilterPanelProps {
-  filters: {
-    productFamilies: string[];
-    businessTypes: string[];
-    salesVolumeRange: [number, number];
-  };
-  onFilterChange: (filters: {
-    productFamilies: string[];
-    businessTypes: string[];
-    salesVolumeRange: [number, number];
-  }) => void;
+  filters: ScoutFilters;
+  onFilterChange: (filters: ScoutFilters) => void;
   posData: POSData[];
 }
 
@@ -27,6 +19,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onFilterChange, posD
       setMaxSalesVolume(max);
     }
   }, [posData]);
+
+  const handleDanoneScoutsToggle = (checked: boolean) => {
+    onFilterChange({
+      ...filters,
+      danoneScoutsOnly: checked
+    });
+  };
 
   const handleProductFamilyChange = (family: string, checked: boolean) => {
     const newFamilies = checked
@@ -64,6 +63,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onFilterChange, posD
 
   const clearAllFilters = () => {
     onFilterChange({
+      danoneScoutsOnly: false,
       productFamilies: [],
       businessTypes: [],
       salesVolumeRange: [0, maxSalesVolume]
@@ -97,6 +97,23 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onFilterChange, posD
             <button className="clear-filters-btn" onClick={clearAllFilters}>
               Clear All Filters
             </button>
+          </div>
+
+          <div className="filter-section danone-scout-toggle">
+            <label className="toggle-label">
+              <input
+                type="checkbox"
+                checked={filters.danoneScoutsOnly}
+                onChange={(e) => handleDanoneScoutsToggle(e.target.checked)}
+                className="toggle-checkbox"
+              />
+              <span className="toggle-slider"></span>
+              <span className="toggle-text">
+                🕵️ <strong>Danone Scouts Only</strong>
+                <br />
+                <small>Show only real database data</small>
+              </span>
+            </label>
           </div>
 
           <div className="filter-section">
