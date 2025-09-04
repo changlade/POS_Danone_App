@@ -15,20 +15,14 @@ except ImportError:
     ASYNCPG_AVAILABLE = False
     asyncpg = None
 import asyncio
+from config import DATABASE_CONFIG, APP_CONFIG
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Database configuration for Databricks Postgres
-DATABASE_CONFIG = {
-    "host": "instance-1203a90b-2a20-4155-b1cc-383360ea8797.database.cloud.databricks.com",
-    "port": 5432,
-    "database": "databricks_postgres",
-    "user": "app_account",
-    "password": "DX2o9aIqFId34jJY",
-    "ssl": "require"
-}
+# Database configuration loaded from environment variables
+# See config.py for configuration management
 
 # Database connection pool
 db_pool = None
